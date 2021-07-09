@@ -3,13 +3,6 @@ import market_globals as globals
 
 globals.initialize()
 
-
-Orders = {}
-for good in globals.goods:
-    Orders[good]= {}
-    Orders[good]['Buy'] = []
-    Orders[good]['Sell'] = []
-
 class Order:
     Amount    = 0       # Units of resource
     Price     = 0       # Price Per unit
@@ -35,7 +28,7 @@ class BuyOrder(Order):
         # This stored cash will be transfered to the seller upon a Purchase transaction
         globals.Agents[self.OrderOwner_ID].cash -= self.TotalCost        
 
-    def add_resources(self, Amount):
+    def add_Amount(self, Amount):
         # Calculate the cost of adding the Amount desired
         Cost = Amount*self.Price
 
@@ -61,8 +54,9 @@ class BuyOrder(Order):
         Check = False
 
         if globals.Agents[Agent_ID].cash >= Cost:
-            globals.Agents[Agent_ID].cash -= Cost
-            globals.Agents[self.OrderOwner_ID].stores[self.resource_ID] += Amount
+            globals.Agents[Agent_ID].cash += Cost
+            globals.Agents[self.OrderOwner_ID].add_resource(self.resource_ID,Amount)
+            globals.Agents[Agent_ID].add_resource(self.resource_ID,-Amount)
             self.Amount -= Amount
             if self.Amount == 0:
                 self.Completed = True
@@ -76,7 +70,7 @@ class SellOrder(Order):
         super().__init__(resource_ID, Amount, Price, Agent_ID)
         # The Agent will store the Amount into the Sell Order
         # This stored Amount will be transfered to the buyer upon a Sell transaction
-        globals.Agents[self.OrderOwner_ID].stores[self.resource_ID] -= Amount
+        globals.Agents[self.OrderOwner_ID].add_resource(self.resource_ID,-Amount)
 
     def subtract_resources(self, Amount):
         if Amount > self.Amount:
@@ -84,7 +78,7 @@ class SellOrder(Order):
         else:
             deltaAmount = Amount
         
-        globals.Agents[self.OrderOwner_ID].stores[self.resource_ID] += deltaAmount
+        globals.Agents[self.OrderOwner_ID].add_resource(self.resource_ID,Amount)
         if self.Amount == 0:
             self.Completed = True
 
@@ -103,7 +97,7 @@ class SellOrder(Order):
 
         if globals.Agents[Agent_ID].cash >= Cost:
             globals.Agents[Agent_ID].cash -= Cost
-            globals.Agents[Agent_ID].stores[self.resource_ID] += Amount
+            globals.Agents[Agent_ID].add_resource(self.resource_ID,Amount)
             globals.Agents[self.OrderOwner_ID].cash += Cost
             self.Amount -= Amount
             if self.Amount == 0:
@@ -111,16 +105,3 @@ class SellOrder(Order):
             Check = True
         
         return Check
-
-test_good = globals.goods[0]
-
-for i in range(2):
-    globals.Agents.append(Agent())
-    globals.Agents[i].add_resource(test_good,1000)
-
-
-for j, agent_var in enumerate(globals.Agents):
-    if j == 0:
-        Orders[test_good]['Buy'].append(BuyOrder(test_good,10,1,j))
-    else:
-        Orders[test_good]['Sell'].append(SellOrder(test_good,10,1,j))
