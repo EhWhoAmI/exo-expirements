@@ -28,12 +28,20 @@ class Recipe:
 # Market stuff
 iron = 'iron'
 alloys = 'alloys'
-goods = [iron, alloys]
-default_cost_prices = {iron: 50, alloys: 300}
+copper = 'copper'
+circuits = 'circuits'
+
+goods = [iron, alloys, copper, circuits]
+default_cost_prices = {iron: 50, alloys: 300, copper: 25, circuits: 150}
 alloy_making = Recipe()
 alloy_making.input[iron] = 3
 alloy_making.output[alloys] = 1
-recipes = [alloy_making]
+
+circuit_making = Recipe()
+circuit_making.input = {iron: 1, copper: 2}
+circuit_making.output = {circuits: 2}
+
+recipes = [alloy_making, circuit_making]
 
 max_time = 1000
 
@@ -130,6 +138,27 @@ class BasicPopulation(Agent):
         print(self.cash, prices[alloys])
         add_bid(Bid(self, alloys, self.cash / self.offers[alloys], self.offers[alloys]))
 
+class GenericSeller(Agent):
+    def __init__(self, good):
+        super().__init__()
+        self.good = good
+        self.generation = 100
+
+    def simulate(self):
+        add_resource(self, self.good, self.generation)
+
+    def trade(self):
+        # Re-adjust price
+        if self.good not in prices:
+            pr = prices[self.good]
+            # Get middle
+            self.offer = (pr + self.offer + random.randint(3, 5))/2
+            # Ensure price is above zero, so we don't give money with stuff
+
+        # Sell stuff for a certain price
+        # Sell remaining iron
+        add_offer(Bid(self, self.good, self.stores[self.good], self.offers[self.good]))
+
 class BasicSeller(Agent):
     def __init__(self):
         super().__init__()
@@ -160,6 +189,43 @@ class BasicSeller(Agent):
         # Sell remaining iron
         add_offer(Bid(self, iron, self.stores[iron], self.offer))
         # ensure money is above a certain level
+
+class GenericFactory(Agent):
+    def __init__(self, recipe):
+        super().__init__()
+        self.recipe = recipe
+        self.productivity = 100
+
+    def simulate(self):
+        # Check for all the resources in the factory, and then generate
+        can_manufacture = True
+        for k, v in self.recipe.input.items():
+            if k not in self.stores or not self.stores[k] > -v * self.productivity:
+                can_manufacture = False
+        if can_manufacture:
+            for k, v in self.recipe.input.items():
+                # Check if it can manufacture by checking for enough resources
+                # If it cannot manufacture, then cry, and make a lower amount
+                add_resource(self, k, -v * self.productivity)
+            for k, v in self.recipe.output.items():
+                add_resource(self, k, v * self.productivity)
+    def trade(self):
+        # Sell the stuff in inventory
+        for k, v in self.recipe.input.items():
+            if k in prices:
+                pr = prices[k]
+                # Get middle
+                self.offers[k] = (pr + self.offers[k] - random.randint(3, 5))/2
+                # Ensure price is above zero, so we don't give money with stuff
+            add_bid(Bid(self, k, v * self.productivity, self.offers[k]))
+
+        for k, v in self.recipe.output.items():
+            if k not in self.stores:
+                continue
+            if k in prices:
+                pr = prices[k]
+                self.offers[k] = (pr + self.offers[k] + random.randint(3, 5))/2
+            add_offer(Bid(self, k, self.stores[k], self.offers[k]))
 
 class BasicFactory(Agent):
     def __init__(self, recipe):
@@ -219,18 +285,23 @@ class BasicFactory(Agent):
                 self.alloy_offer = min_price
         add_offer(Bid(self, alloys, self.stores[alloys], self.alloy_offer))
 
-
 buyer_count = 100
 seller_count = 10
 
-agents.append(BasicFactory(alloy_making))
-agents.append(BasicFactory(alloy_making))
+agents.append(GenericFactory(alloy_making))
+agents.append(GenericFactory(alloy_making))
+
+agents.append(GenericFactory(circuit_making))
+agents.append(GenericFactory(circuit_making))
 
 agents.append(BasicPopulation())
 agents.append(BasicPopulation())
 
 for i in range(6):
-    agents.append(BasicSeller())
+    agents.append(GenericSeller(iron))
+
+for i in range(6):
+    agents.append(GenericSeller(copper))
 
 # Data collection
 average_historic_prices = {}
