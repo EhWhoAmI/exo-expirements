@@ -41,7 +41,9 @@ agents = []
 
 bids = {}
 offers = {}
-prices = {}
+previous_supply = {iron: 0, alloys: 0}
+previous_demand = {iron: 0, alloys: 0}
+prices = dict(default_cost_prices)
 
 class Bid:
     def __init__(self, agent, good, units, unit_price):
@@ -77,7 +79,7 @@ class Agent:
         pass
 
     def trade(self):
-        self.success.clear()
+        pass
 
 MIN_PRICE = 0.5
 class BasicBuyer(Agent):
@@ -103,6 +105,10 @@ class BasicPopulation(Agent):
         super().__init__()
         # Add prices
         self.cash += 1000
+        self.failure_time = 0
+
+    def simulate(self):
+        self.cash += 100000
 
     def trade(self):
         super().trade()
@@ -112,13 +118,17 @@ class BasicPopulation(Agent):
             pr = prices[alloys]
             # Get middle
             # Adjust price by random
-            self.offers[alloys] = (pr + self.offers[alloys] - random.randint(0, 5))/2
-            # Actively seek to decrease price
+            self.offers[alloys] = (pr + self.offers[alloys] - random.randint(3, 5))/2
+            # Actively seek to increase price
             if alloys not in self.success:
                 self.offers[alloys] *= 1.01
+                self.failure_time += 1
             else:
+                self.failure_time = 0
                 self.offers[alloys] *= 0.99
-        add_bid(Bid(self, alloys, random.randint(70, 120), self.offers[alloys]))
+        # Ensure that the amount you can buy is the amount you can afford
+        print(self.cash, prices[alloys])
+        add_bid(Bid(self, alloys, self.cash / self.offers[alloys], self.offers[alloys]))
 
 class BasicSeller(Agent):
     def __init__(self):
@@ -136,10 +146,16 @@ class BasicSeller(Agent):
         if iron in prices:
             pr = prices[iron]
             # Get middle
-            self.offer = (pr + self.offer + random.randint(1, 5))/2
+            self.offer = (pr + self.offer + random.randint(3, 5))/2
             # Ensure price is above zero, so we don't give money with stuff
             if self.offer <= MIN_PRICE:
                 self.offer = MIN_PRICE
+            if iron in self.success:
+                self.offers[iron] *= 1.01
+                self.success.pop(iron)
+            else:
+                self.offers[iron] *= 0.99 ** (math.log10(self.stores[iron]) + 1.01)
+
         # Sell stuff for a certain price
         # Sell remaining iron
         add_offer(Bid(self, iron, self.stores[iron], self.offer))
@@ -172,11 +188,12 @@ class BasicFactory(Agent):
         super().trade()
         # Re-adjust price
         # Request everything in recipe
+        # Ensure that we have enough cash to manufacture things
         for k, v in self.recipe.input.items():
             if k in prices:
                 pr = prices[k]
                 # Get middle
-                self.offers[k] = (pr + self.offers[k] - random.randint(1, 5))/2
+                self.offers[k] = (pr + self.offers[k] - random.randint(3, 5))/2
                 # Ensure price is above zero, so we don't give money with stuff
             add_bid(Bid(self, k, v * self.productivity, self.offers[k]))
 
@@ -184,15 +201,19 @@ class BasicFactory(Agent):
         if alloys in prices:
             pr = prices[alloys]
             # Get middle
-            self.alloy_offer = (pr + self.alloy_offer + random.randint(1, 5))/2
+            self.alloy_offer = (pr + self.alloy_offer + random.randint(3, 5))/2
             # Ensure that they'll make a profit
             # If it's not sold, also decrease the price, if it is, increase the price
             # Actively seek to decrease price
             if alloys not in self.success:
                 # Decrease price as a factor as amount of alloys
-                self.alloy_offer *= (0.99 ** math.log10(self.stores[alloys]))
+                self.alloy_offer *= (0.99 ** 1)
+                pass
             else:
-                self.alloy_offer *= 1.01
+                #print(previous_supply[alloys]/previous_demand[alloys])
+                self.alloy_offer *= (1.01 ** 1)
+                pass
+                #self.alloy_offer *= 1/(previous_supply[alloys]/previous_demand[alloys])
             min_price = (prices[iron] * self.recipe.input[iron])
             if self.alloy_offer <= min_price:
                 self.alloy_offer = min_price
@@ -203,11 +224,13 @@ buyer_count = 100
 seller_count = 10
 
 agents.append(BasicFactory(alloy_making))
+agents.append(BasicFactory(alloy_making))
+
+agents.append(BasicPopulation())
 agents.append(BasicPopulation())
 
-agents.append(BasicSeller())
-agents.append(BasicSeller())
-agents.append(BasicSeller())
+for i in range(6):
+    agents.append(BasicSeller())
 
 # Data collection
 average_historic_prices = {}
@@ -217,7 +240,7 @@ bid_count_history = {}
 offer_count_history = {}
 volume_history = {}
 
-max_time = 1000
+max_time = 100
 for age in range(max_time):
     # Create orders
     for agen in agents:
@@ -256,6 +279,9 @@ for age in range(max_time):
             offer_count_history[good] = {}
         offer_count_history[good][age] = sum(c.units for c in good_offer)
 
+        previous_supply[good] = offer_count_history[good][age]
+        previous_demand[good] = bid_count_history[good][age]
+
         # Get highest bid
         highest_bid = good_bid[0]
         lowest_offer = good_offer[0]
@@ -278,14 +304,14 @@ for age in range(max_time):
             trading_price = (current_seller.unit_price + current_buyer.unit_price) / 2
             # Check if the offer price is too low
             # Then reject if it's too low
-            #if current_seller.unit_price < current_buyer.unit_price:
+            if current_seller.unit_price > current_buyer.unit_price:
                 # Remove it, it's too low
-                #good_offer.pop(0)
-                #good_bid.pop(0)
-                #continue
+                #break
+                pass
 
             # The trade worked!
             if amount_traded > 0:
+                # Trade for the amount of cash the trader has
                 current_buyer.units -= amount_traded
                 current_seller.units -= amount_traded
                 volume += amount_traded
@@ -304,7 +330,7 @@ for age in range(max_time):
                 good_bid.pop(0)
 
             if current_seller.units <= 0:
-                current_buyer.agent.success[good] = True
+                current_seller.agent.success[good] = True
                 good_offer.pop(0)
 
             exit += 1
@@ -335,6 +361,11 @@ fig, axs = plt.subplots(1, 3)
 for k, v in highest_bids.items():
     offers = lowest_offers[k]
     axs[0].fill_between(v.keys(), v.values(), offers.values(), alpha=0.25, label="{}".format(k))
+
+for k, v in highest_bids.items():
+    axs[0].plot(v.keys(), v.values(), alpha=0.25, label="{} highest bids".format(k))
+for k, v in lowest_offers.items():
+    axs[0].plot(v.keys(), v.values(), alpha=0.75, label="{} lowest offers".format(k))
 
 for k, v in average_historic_prices.items():
     axs[0].plot(v.keys(), v.values(), label="{}".format(k))
