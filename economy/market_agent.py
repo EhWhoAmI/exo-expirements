@@ -11,10 +11,7 @@ def transfer_cash(a, b, amount):
     a.cash -= amount
     b.cash -= amount
 
-def add_resource(a, resource, amount):
-    if resource not in a.stores:
-        a.stores[resource] = 0
-    a.stores[resource] += amount
+
 
 def transfer_resource(a, b, resource, amount):
     add_resource(a, resource, -amount)
@@ -78,6 +75,11 @@ class Agent:
 
     def trade(self):
         self.success.clear()
+    
+    def add_resource(self, resource, amount):
+        if resource not in self.stores:
+            self.stores[resource] = 0
+        self.stores[resource] += amount
 
 MIN_PRICE = 0.5
 class BasicBuyer(Agent):
@@ -199,166 +201,166 @@ class BasicFactory(Agent):
         add_offer(Bid(self, alloys, self.stores[alloys], self.alloy_offer))
 
 
-buyer_count = 100
-seller_count = 10
+# buyer_count = 100
+# seller_count = 10
 
-agents.append(BasicFactory(alloy_making))
-agents.append(BasicPopulation())
+# agents.append(BasicFactory(alloy_making))
+# agents.append(BasicPopulation())
 
-agents.append(BasicSeller())
-agents.append(BasicSeller())
-agents.append(BasicSeller())
+# agents.append(BasicSeller())
+# agents.append(BasicSeller())
+# agents.append(BasicSeller())
 
-# Data collection
-average_historic_prices = {}
-highest_bids = {}
-lowest_offers = {}
-bid_count_history = {}
-offer_count_history = {}
-volume_history = {}
+# # Data collection
+# average_historic_prices = {}
+# highest_bids = {}
+# lowest_offers = {}
+# bid_count_history = {}
+# offer_count_history = {}
+# volume_history = {}
 
-max_time = 1000
-for age in range(max_time):
-    # Create orders
-    for agen in agents:
-        agen.simulate()
-        agen.trade()
+# max_time = 1000
+# for age in range(max_time):
+#     # Create orders
+#     for agen in agents:
+#         agen.simulate()
+#         agen.trade()
 
-    # Resolve orders
-    # Resolve buy orders
-    for good in goods:
-        if good not in bids:
-            # No bids, so infinite supply
-            print("Not parsing {}, zero bids".format(good))
-            continue
-        if good not in offers:
-            # no asks, so infinite demand
-            print("Not parsing {}, zero offers".format(good))
-            continue
-        good_bid = bids[good]
-        good_offer = offers[good]
-        # Check for number of demands
-        if len(good_bid) == 0:
-            continue
+#     # Resolve orders
+#     # Resolve buy orders
+#     for good in goods:
+#         if good not in bids:
+#             # No bids, so infinite supply
+#             print("Not parsing {}, zero bids".format(good))
+#             continue
+#         if good not in offers:
+#             # no asks, so infinite demand
+#             print("Not parsing {}, zero offers".format(good))
+#             continue
+#         good_bid = bids[good]
+#         good_offer = offers[good]
+#         # Check for number of demands
+#         if len(good_bid) == 0:
+#             continue
 
-        if len(good_offer) == 0:
-            continue
+#         if len(good_offer) == 0:
+#             continue
 
-        good_bid.sort(key=lambda x: x.unit_price, reverse=True)
-        good_offer.sort(key=lambda x: x.unit_price, reverse=False)
+#         good_bid.sort(key=lambda x: x.unit_price, reverse=True)
+#         good_offer.sort(key=lambda x: x.unit_price, reverse=False)
 
-        # Get number of bids and offers
-        if good not in bid_count_history:
-            bid_count_history[good] = {}
-        bid_count_history[good][age] = sum(c.units for c in good_bid)
+#         # Get number of bids and offers
+#         if good not in bid_count_history:
+#             bid_count_history[good] = {}
+#         bid_count_history[good][age] = sum(c.units for c in good_bid)
 
-        if good not in offer_count_history:
-            offer_count_history[good] = {}
-        offer_count_history[good][age] = sum(c.units for c in good_offer)
+#         if good not in offer_count_history:
+#             offer_count_history[good] = {}
+#         offer_count_history[good][age] = sum(c.units for c in good_offer)
 
-        # Get highest bid
-        highest_bid = good_bid[0]
-        lowest_offer = good_offer[0]
+#         # Get highest bid
+#         highest_bid = good_bid[0]
+#         lowest_offer = good_offer[0]
 
-        if good not in lowest_offers:
-            lowest_offers[good] = {}
-        lowest_offers[good][age] = lowest_offer.unit_price
+#         if good not in lowest_offers:
+#             lowest_offers[good] = {}
+#         lowest_offers[good][age] = lowest_offer.unit_price
 
-        if good not in highest_bids:
-            highest_bids[good] = {}
-        highest_bids[good][age] = highest_bid.unit_price
+#         if good not in highest_bids:
+#             highest_bids[good] = {}
+#         highest_bids[good][age] = highest_bid.unit_price
 
-        exit = 0
-        tradeing_prices = []
-        volume = 0
-        while len(good_bid) > 0 and len(good_offer) > 0:
-            current_buyer = good_bid[0]
-            current_seller = good_offer[0]
-            amount_traded = min(current_buyer.units, current_seller.units)
-            trading_price = (current_seller.unit_price + current_buyer.unit_price) / 2
-            # Check if the offer price is too low
-            # Then reject if it's too low
-            #if current_seller.unit_price < current_buyer.unit_price:
-                # Remove it, it's too low
-                #good_offer.pop(0)
-                #good_bid.pop(0)
-                #continue
+#         exit = 0
+#         tradeing_prices = []
+#         volume = 0
+#         while len(good_bid) > 0 and len(good_offer) > 0:
+#             current_buyer = good_bid[0]
+#             current_seller = good_offer[0]
+#             amount_traded = min(current_buyer.units, current_seller.units)
+#             trading_price = (current_seller.unit_price + current_buyer.unit_price) / 2
+#             # Check if the offer price is too low
+#             # Then reject if it's too low
+#             #if current_seller.unit_price < current_buyer.unit_price:
+#                 # Remove it, it's too low
+#                 #good_offer.pop(0)
+#                 #good_bid.pop(0)
+#                 #continue
 
-            # The trade worked!
-            if amount_traded > 0:
-                current_buyer.units -= amount_traded
-                current_seller.units -= amount_traded
-                volume += amount_traded
+#             # The trade worked!
+#             if amount_traded > 0:
+#                 current_buyer.units -= amount_traded
+#                 current_seller.units -= amount_traded
+#                 volume += amount_traded
 
-                # Trade goods
-                transfer_cash(current_buyer.agent, current_seller.agent, amount_traded * trading_price)
-                transfer_resource(current_seller.agent, current_buyer.agent, good, amount_traded)
+#                 # Trade goods
+#                 transfer_cash(current_buyer.agent, current_seller.agent, amount_traded * trading_price)
+#                 transfer_resource(current_seller.agent, current_buyer.agent, good, amount_traded)
 
-                # Data collection
-                tradeing_prices.append(trading_price)
+#                 # Data collection
+#                 tradeing_prices.append(trading_price)
 
-            # Check if it cannot be resolved
-            # Remove all extra buy orders
-            if current_buyer.units <= 0:
-                current_buyer.agent.success[good] = True
-                good_bid.pop(0)
+#             # Check if it cannot be resolved
+#             # Remove all extra buy orders
+#             if current_buyer.units <= 0:
+#                 current_buyer.agent.success[good] = True
+#                 good_bid.pop(0)
 
-            if current_seller.units <= 0:
-                current_buyer.agent.success[good] = True
-                good_offer.pop(0)
+#             if current_seller.units <= 0:
+#                 current_buyer.agent.success[good] = True
+#                 good_offer.pop(0)
 
-            exit += 1
+#             exit += 1
 
-        if good not in volume_history:
-            volume_history[good] = {}
-        volume_history[good][age] = volume
+#         if good not in volume_history:
+#             volume_history[good] = {}
+#         volume_history[good][age] = volume
 
-        # Clear bids
-        good_bid.clear()
-        good_offer.clear()
+#         # Clear bids
+#         good_bid.clear()
+#         good_offer.clear()
 
-        if len(tradeing_prices) == 0:
-            continue
+#         if len(tradeing_prices) == 0:
+#             continue
 
-        # Data collection
-        if good not in average_historic_prices:
-            average_historic_prices[good] = {}
-        average_historic_prices[good][age] = sum(tradeing_prices)/len(tradeing_prices)
-        prices[good] = average_historic_prices[good][age]
+#         # Data collection
+#         if good not in average_historic_prices:
+#             average_historic_prices[good] = {}
+#         average_historic_prices[good][age] = sum(tradeing_prices)/len(tradeing_prices)
+#         prices[good] = average_historic_prices[good][age]
 
-    # Compile stats
+#     # Compile stats
 
-# Display plot
-fig, axs = plt.subplots(1, 3)
-# Make some space on the right side for the extra y-axis.
+# # Display plot
+# fig, axs = plt.subplots(1, 3)
+# # Make some space on the right side for the extra y-axis.
 
-for k, v in highest_bids.items():
-    offers = lowest_offers[k]
-    axs[0].fill_between(v.keys(), v.values(), offers.values(), alpha=0.25, label="{}".format(k))
+# for k, v in highest_bids.items():
+#     offers = lowest_offers[k]
+#     axs[0].fill_between(v.keys(), v.values(), offers.values(), alpha=0.25, label="{}".format(k))
 
-for k, v in average_historic_prices.items():
-    axs[0].plot(v.keys(), v.values(), label="{}".format(k))
+# for k, v in average_historic_prices.items():
+#     axs[0].plot(v.keys(), v.values(), label="{}".format(k))
 
-for k, v in offer_count_history.items():
-    axs[1].plot(v.keys(), v.values(), label="{} offers".format(k))
+# for k, v in offer_count_history.items():
+#     axs[1].plot(v.keys(), v.values(), label="{} offers".format(k))
 
-for k, v in bid_count_history.items():
-    axs[1].plot(v.keys(), v.values(), label="{} bids".format(k))
+# for k, v in bid_count_history.items():
+#     axs[1].plot(v.keys(), v.values(), label="{} bids".format(k))
 
-for k, v in volume_history.items():
-    axs[2].plot(v.keys(), v.values(), label="{} volume".format(k), marker='o')
+# for k, v in volume_history.items():
+#     axs[2].plot(v.keys(), v.values(), label="{} volume".format(k), marker='o')
 
-# Move the last y-axis spine over to the right by 20% of the width of the axes
+# # Move the last y-axis spine over to the right by 20% of the width of the axes
 
-# Get number of bids
-axs[0].legend(loc="upper left")
-axs[0].set_xlabel("Time")
-axs[0].set_ylabel("Price")
-axs[1].legend(loc="upper right")
-axs[1].set_xlabel("Time")
-axs[1].set_ylabel("Bids/offer amount (units)")
-axs[2].set_ylabel("Volume (units)")
-axs[2].set_xlabel("Time")
-axs[2].legend(loc="lower left")
+# # Get number of bids
+# axs[0].legend(loc="upper left")
+# axs[0].set_xlabel("Time")
+# axs[0].set_ylabel("Price")
+# axs[1].legend(loc="upper right")
+# axs[1].set_xlabel("Time")
+# axs[1].set_ylabel("Bids/offer amount (units)")
+# axs[2].set_ylabel("Volume (units)")
+# axs[2].set_xlabel("Time")
+# axs[2].legend(loc="lower left")
 
-plt.show()
+# plt.show()
